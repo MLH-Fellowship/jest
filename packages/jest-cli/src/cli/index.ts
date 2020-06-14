@@ -118,7 +118,7 @@ const readResultsAndExit = (
 
   // Only exit if needed
   process.on('exit', () => {
-    if (typeof code === 'number' && code !== 0) {
+    if (code !== 0) {
       process.exitCode = code;
     }
   });
