@@ -68,10 +68,10 @@ module.exports = Object.assign({}, fbjsConfig, {
     'prefer-arrow-callback': [2],
     'prefer-const': [2],
     quotes: [
-      2,
+      'error',
       'single',
       {
-        allowTemplateLiterals: true,
+        allowTemplateLiterals: false,
         avoidEscape: true,
       },
     ],
@@ -80,7 +80,11 @@ module.exports = Object.assign({}, fbjsConfig, {
     'space-before-blocks': [2],
     'space-before-function-paren': [
       2,
-      {anonymous: 'never', asyncArrow: 'always', named: 'never'},
+      {
+        anonymous: 'never',
+        asyncArrow: 'always',
+        named: 'never',
+      },
     ],
     'space-in-parens': [2, 'never'],
   }),
