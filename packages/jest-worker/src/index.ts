@@ -79,6 +79,7 @@ export default class JestWorker {
       maxRetries: this._options.maxRetries || 3,
       numWorkers: this._options.numWorkers || Math.max(cpus().length - 1, 1),
       setupArgs: this._options.setupArgs || [],
+      onIndividualTestResult: options.onIndividualTestResult,
     };
 
     if (this._options.WorkerPool) {

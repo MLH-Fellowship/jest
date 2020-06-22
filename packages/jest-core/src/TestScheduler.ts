@@ -76,6 +76,9 @@ export default class TestScheduler {
     tests: Array<TestRunner.Test>,
     watcher: TestWatcher,
   ): Promise<AggregatedResult> {
+    const onIndividualTestResult = this._dispatcher.onIndividualTestResult.bind(
+      this._dispatcher,
+    );
     const onStart = this._dispatcher.onTestStart.bind(this._dispatcher);
     const timings: Array<number> = [];
     const contexts = new Set<Context>();
@@ -199,6 +202,7 @@ export default class TestScheduler {
             onStart,
             onResult,
             onFailure,
+            onIndividualTestResult,
             {
               serial: runInBand || Boolean(testRunners[runner].isSerial),
             },

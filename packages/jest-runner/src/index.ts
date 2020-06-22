@@ -61,16 +61,25 @@ class TestRunner {
     onResult: JestOnTestSuccess,
     onFailure: JestOnTestFailure,
     options: JestTestRunnerOptions,
+    onIndividualTestResult: any,
   ): Promise<void> {
     return await (options.serial
-      ? this._createInBandTestRun(tests, watcher, onStart, onResult, onFailure)
+      ? this._createInBandTestRun(
+        tests,
+        watcher,
+        onStart,
+        onResult,
+        onFailure,
+        onIndividualTestResult,
+      )
       : this._createParallelTestRun(
           tests,
           watcher,
           onStart,
           onResult,
           onFailure,
-        ));
+          onIndividualTestResult,
+      ));
   }
 
   private async _createInBandTestRun(
@@ -79,7 +88,9 @@ class TestRunner {
     onStart: JestOnTestStart,
     onResult: JestOnTestSuccess,
     onFailure: JestOnTestFailure,
+    onIndividualTestResult: any,
   ) {
+    process.on('test_done', evt => onIndividualTestResult(evt.test));
     process.env.JEST_WORKER_ID = '1';
     const mutex = throat(1);
     return tests.reduce(
@@ -113,6 +124,7 @@ class TestRunner {
     onStart: JestOnTestStart,
     onResult: JestOnTestSuccess,
     onFailure: JestOnTestFailure,
+    onIndividualTestResult: any,
   ) {
     const resolvers: Map<string, SerializableResolver> = new Map();
     for (const test of tests) {
@@ -129,6 +141,7 @@ class TestRunner {
       forkOptions: {stdio: 'pipe'},
       maxRetries: 3,
       numWorkers: this._globalConfig.maxWorkers,
+      onIndividualTestResult,
       setupArgs: [
         {
           serializableResolvers: Array.from(resolvers.values()),

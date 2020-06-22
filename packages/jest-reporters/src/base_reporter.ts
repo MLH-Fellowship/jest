@@ -8,6 +8,7 @@
 import type {AggregatedResult, TestResult} from '@jest/test-result';
 import {preRunMessage} from 'jest-util';
 import type {Context, Reporter, ReporterOnStartOptions, Test} from './types';
+import type {TestEntry} from '@jest/types/build/Circus';
 
 const {remove: preRunMessageRemove} = preRunMessage;
 
@@ -24,6 +25,10 @@ export default class BaseReporter implements Reporter {
   ): void {
     preRunMessageRemove(process.stderr);
   }
+
+  onIndividualTestResult(
+    _testEntry: TestEntry
+  ): void {}
 
   onTestResult(
     _test?: Test,

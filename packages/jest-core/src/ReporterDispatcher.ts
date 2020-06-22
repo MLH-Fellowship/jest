@@ -9,6 +9,8 @@ import type {AggregatedResult, TestResult} from '@jest/test-result';
 import type {Test} from 'jest-runner';
 import type {Context} from 'jest-runtime';
 import type {Reporter, ReporterOnStartOptions} from '@jest/reporters';
+import type {TestEntry} from '@jest/types/build/Circus';
+
 
 export default class ReporterDispatcher {
   private _reporters: Array<Reporter>;
@@ -25,6 +27,13 @@ export default class ReporterDispatcher {
     this._reporters = this._reporters.filter(
       reporter => !(reporter instanceof ReporterClass),
     );
+  }
+
+  async onIndividualTestResult(testEntry: TestEntry) {
+    for (const reporter of this._reporters) {
+      reporter.onIndividualTestResult &&
+      (await reporter.onIndividualTestResult(testEntry));
+    }
   }
 
   async onTestResult(

@@ -60,6 +60,19 @@ const messageListener = (request: any) => {
   }
 };
 parentPort!.on('message', messageListener);
+process.on('test_done', ({test}) => {
+  process.send([
+    'test_done',
+    {
+      name: test.name,
+      duration: test.duration,
+      parent: test.parent && {
+        name: test.parent.name,
+        parent: test.parent.parent && test.parent.parent.name,
+      },
+    },
+  ]);
+});
 
 function reportSuccess(result: any) {
   if (isMainThread) {
