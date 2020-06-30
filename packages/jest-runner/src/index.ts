@@ -6,11 +6,11 @@
  */
 
 import type {Config} from '@jest/types';
-import type {SerializableError} from '@jest/test-result';
+import type {SerializableError, TestResult} from '@jest/test-result';
 import exit = require('exit');
 import chalk = require('chalk');
 import throat from 'throat';
-import Worker from 'jest-worker';
+import Worker, {PromiseWithCustomMessage} from 'jest-worker';
 import runTest from './runTest';
 import type {SerializableResolver, worker} from './testWorker';
 import type {
@@ -23,6 +23,7 @@ import type {
   TestWatcher as JestTestWatcher,
   WatcherState,
 } from './types';
+import Emittery = require('emittery');
 
 const TEST_WORKER_PATH = require.resolve('./testWorker');
 
@@ -45,6 +46,9 @@ class TestRunner {
   private _globalConfig: Config.GlobalConfig;
   private _context: JestTestRunnerContext;
   readonly isSerial?: boolean;
+  public eventEmitter: Emittery;
+
+  public __PRIVATE_UNSTABLE_API_supportsEventEmmiters__: true = true;
 
   constructor(
     globalConfig: Config.GlobalConfig,
@@ -52,33 +56,23 @@ class TestRunner {
   ) {
     this._globalConfig = globalConfig;
     this._context = context || {};
+    this.eventEmitter = new Emittery();
   }
 
   async runTests(
     tests: Array<JestTest>,
     watcher: JestTestWatcher,
-    onStart: JestOnTestStart,
-    onResult: JestOnTestSuccess,
-    onFailure: JestOnTestFailure,
+
     options: JestTestRunnerOptions,
   ): Promise<void> {
     return await (options.serial
-      ? this._createInBandTestRun(tests, watcher, onStart, onResult, onFailure)
-      : this._createParallelTestRun(
-          tests,
-          watcher,
-          onStart,
-          onResult,
-          onFailure,
-        ));
+      ? this._createInBandTestRun(tests, watcher)
+      : this._createParallelTestRun(tests, watcher));
   }
 
   private async _createInBandTestRun(
     tests: Array<JestTest>,
     watcher: JestTestWatcher,
-    onStart: JestOnTestStart,
-    onResult: JestOnTestSuccess,
-    onFailure: JestOnTestFailure,
   ) {
     process.env.JEST_WORKER_ID = '1';
     const mutex = throat(1);
@@ -91,17 +85,29 @@ class TestRunner {
                 throw new CancelRun();
               }
 
-              await onStart(test);
+              const sendMessageToJest = (
+                eventName: string,
+                arg: Array<any>,
+              ) => {
+                this.eventEmitter.emit(eventName, arg);
+              };
+
+              await this.eventEmitter.emit('test-file-start', [test]);
               return runTest(
                 test.path,
                 this._globalConfig,
                 test.context.config,
                 test.context.resolver,
+                sendMessageToJest,
                 this._context,
               );
             })
-            .then(result => onResult(test, result))
-            .catch(err => onFailure(test, err)),
+            .then(result =>
+              this.eventEmitter.emit('test-file-success', [test, result]),
+            )
+            .catch(err =>
+              this.eventEmitter.emit('test-file-failure', [test, err]),
+            ),
         ),
       Promise.resolve(),
     );
@@ -110,9 +116,6 @@ class TestRunner {
   private async _createParallelTestRun(
     tests: Array<JestTest>,
     watcher: JestTestWatcher,
-    onStart: JestOnTestStart,
-    onResult: JestOnTestSuccess,
-    onFailure: JestOnTestFailure,
   ) {
     const resolvers: Map<string, SerializableResolver> = new Map();
     for (const test of tests) {
@@ -149,9 +152,9 @@ class TestRunner {
           return Promise.reject();
         }
 
-        await onStart(test);
+        await this.eventEmitter.emit('test-file-start', [test]);
 
-        return worker.worker({
+        const promise = worker.worker({
           config: test.context.config,
           context: {
             ...this._context,
@@ -164,11 +167,19 @@ class TestRunner {
           },
           globalConfig: this._globalConfig,
           path: test.path,
-        });
+        }) as PromiseWithCustomMessage<TestResult>;
+
+        if (promise.onCustomMessage) {
+          promise.onCustomMessage(([event, payload]: any) => {
+            this.eventEmitter.emit(event, payload);
+          });
+        }
+
+        return promise;
       });
 
     const onError = async (err: SerializableError, test: JestTest) => {
-      await onFailure(test, err);
+      await this.eventEmitter.emit('test-file-failure', [test, err]);
       if (err.type === 'ProcessTerminatedError') {
         console.error(
           'A worker process has quit unexpectedly! ' +
@@ -189,7 +200,9 @@ class TestRunner {
     const runAllTests = Promise.all(
       tests.map(test =>
         runTestInWorker(test)
-          .then(testResult => onResult(test, testResult))
+          .then(result =>
+            this.eventEmitter.emit('test-file-success', [test, result]),
+          )
           .catch(error => onError(error, test)),
       ),
     );

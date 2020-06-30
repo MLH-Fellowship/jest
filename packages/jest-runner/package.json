@@ -10,6 +10,7 @@
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "dependencies": {
+    "emittery": "^0.5.1",
     "@jest/console": "^26.1.0",
     "@jest/environment": "^26.1.0",
     "@jest/test-result": "^26.1.0",

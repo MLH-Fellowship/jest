@@ -22,6 +22,7 @@ const jestAdapter = async (
   environment: JestEnvironment,
   runtime: Runtime,
   testPath: string,
+  sendMessageToJest?: Function,
 ): Promise<TestResult> => {
   const {
     initialize,
@@ -46,6 +47,7 @@ const jestAdapter = async (
     globalConfig,
     localRequire: runtime.requireModule.bind(runtime),
     parentProcess: process,
+    sendMessageToJest,
     testPath,
   });
 

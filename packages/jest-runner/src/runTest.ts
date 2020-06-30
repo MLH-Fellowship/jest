@@ -80,6 +80,7 @@ async function runTestInternal(
   globalConfig: Config.GlobalConfig,
   config: Config.ProjectConfig,
   resolver: Resolver,
+  sendMessageToJest: Function,
   context?: TestRunnerContext,
 ): Promise<RunTestInternalResult> {
   const testSource = fs.readFileSync(path, 'utf8');
@@ -246,6 +247,7 @@ async function runTestInternal(
         environment,
         runtime,
         path,
+        sendMessageToJest,
       );
     } catch (err) {
       // Access stack before uninstalling sourcemaps
@@ -312,6 +314,7 @@ export default async function runTest(
   globalConfig: Config.GlobalConfig,
   config: Config.ProjectConfig,
   resolver: Resolver,
+  sendMessageToJest: Function,
   context?: TestRunnerContext,
 ): Promise<TestResult> {
   const {leakDetector, result} = await runTestInternal(
@@ -319,6 +322,7 @@ export default async function runTest(
     globalConfig,
     config,
     resolver,
+    sendMessageToJest,
     context,
   );
 

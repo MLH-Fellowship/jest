@@ -25,4 +25,6 @@ export type {
   Suite,
   TestResult,
   V8CoverageResult,
+  TestCase,
+  TestCaseResult,
 } from './types';
