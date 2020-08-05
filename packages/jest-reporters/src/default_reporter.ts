@@ -131,6 +131,10 @@ export default class DefaultReporter extends BaseReporter {
     this._status.runStarted(aggregatedResults, options);
   }
 
+  onTestFileAdd(test: Test): void {
+    this._status.addTestFiles(test);
+  }
+
   onTestStart(test: Test): void {
     this._status.testStarted(test.path, test.context.config);
   }

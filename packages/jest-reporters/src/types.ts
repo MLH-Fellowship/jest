@@ -54,6 +54,7 @@ export type OnTestFailure = (
 export type OnTestSuccess = (test: Test, result: TestResult) => Promise<any>;
 
 export interface Reporter {
+  readonly onTestFileAdd?: (test: Test) => Promise<void> | void;
   readonly onTestResult?: (
     test: Test,
     testResult: TestResult,

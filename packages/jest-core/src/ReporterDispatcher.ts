@@ -50,6 +50,14 @@ export default class ReporterDispatcher {
     testResult.console = undefined;
   }
 
+  async onTestFileAdd(test: Test): Promise<void> {
+    for (const reporter of this._reporters) {
+      if (reporter.onTestFileAdd) {
+        await reporter.onTestFileAdd(test);
+      }
+    }
+  }
+
   async onTestFileStart(test: Test): Promise<void> {
     for (const reporter of this._reporters) {
       if (reporter.onTestFileStart) {
