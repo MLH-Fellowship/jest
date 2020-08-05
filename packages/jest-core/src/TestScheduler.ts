@@ -47,10 +47,10 @@ export type TestSchedulerContext = {
   sourcesRelatedToTestsInChangedFiles?: Set<Config.Path>;
 };
 export default class TestScheduler {
-  private _dispatcher: ReporterDispatcher;
-  private _globalConfig: Config.GlobalConfig;
-  private _options: TestSchedulerOptions;
-  private _context: TestSchedulerContext;
+  private readonly _dispatcher: ReporterDispatcher;
+  private readonly _globalConfig: Config.GlobalConfig;
+  private readonly _options: TestSchedulerOptions;
+  private readonly _context: TestSchedulerContext;
 
   constructor(
     globalConfig: Config.GlobalConfig,
@@ -76,10 +76,15 @@ export default class TestScheduler {
     tests: Array<TestRunner.Test>,
     watcher: TestWatcher,
   ): Promise<AggregatedResult> {
+    // ReportMore
     const onIndividualTestResult = this._dispatcher.onIndividualTestResult.bind(
       this._dispatcher,
     );
     const onStart = this._dispatcher.onTestStart.bind(this._dispatcher);
+    //
+    const onTestFileStart = this._dispatcher.onTestFileStart.bind(
+      this._dispatcher,
+    );
     const timings: Array<number> = [];
     const contexts = new Set<Context>();
     tests.forEach(test => {
@@ -128,7 +133,11 @@ export default class TestScheduler {
       }
 
       addResult(aggregatedResults, testResult);
-      await this._dispatcher.onTestResult(test, testResult, aggregatedResults);
+      await this._dispatcher.onTestFileResult(
+        test,
+        testResult,
+        aggregatedResults,
+      );
       return this._bailIfNeeded(contexts, aggregatedResults, watcher);
     };
 
@@ -147,7 +156,11 @@ export default class TestScheduler {
         test.path,
       );
       addResult(aggregatedResults, testResult);
-      await this._dispatcher.onTestResult(test, testResult, aggregatedResults);
+      await this._dispatcher.onTestFileResult(
+        test,
+        testResult,
+        aggregatedResults,
+      );
     };
 
     const updateSnapshotState = () => {
@@ -180,14 +193,18 @@ export default class TestScheduler {
     });
 
     const testRunners: {[key: string]: TestRunner} = Object.create(null);
-    contexts.forEach(({config}) => {
+    const contextsByTestRunner = new WeakMap<TestRunner, Context>();
+    contexts.forEach(context => {
+      const {config} = context;
       if (!testRunners[config.runner]) {
         const Runner: typeof TestRunner = require(config.runner);
-        testRunners[config.runner] = new Runner(this._globalConfig, {
+        const runner = new Runner(this._globalConfig, {
           changedFiles: this._context?.changedFiles,
           sourcesRelatedToTestsInChangedFiles: this._context
             ?.sourcesRelatedToTestsInChangedFiles,
         });
+        testRunners[config.runner] = runner;
+        contextsByTestRunner.set(runner, context);
       }
     });
 
@@ -196,17 +213,74 @@ export default class TestScheduler {
     if (testsByRunner) {
       try {
         for (const runner of Object.keys(testRunners)) {
-          await testRunners[runner].runTests(
-            testsByRunner[runner],
-            watcher,
-            onStart,
-            onResult,
-            onFailure,
-            onIndividualTestResult,
-            {
-              serial: runInBand || Boolean(testRunners[runner].isSerial),
-            },
-          );
+
+          const testRunner = testRunners[runner];
+          const context = contextsByTestRunner.get(testRunner);
+
+          invariant(context);
+
+          const tests = testsByRunner[runner];
+
+          const testRunnerOptions = {
+            serial: runInBand || Boolean(testRunner.isSerial),
+          };
+
+          /**
+           * Test runners with event emitters are still not supported
+           * for third party test runners.
+           */
+          if (testRunner.__PRIVATE_UNSTABLE_API_supportsEventEmitters__) {
+            const unsubscribes = [
+              testRunner.on('test-file-start', ([test]) =>
+                onTestFileStart(test),
+              ),
+              testRunner.on('test-file-success', ([test, testResult]) =>
+                onResult(test, testResult),
+              ),
+              testRunner.on('test-file-failure', ([test, error]) =>
+                onFailure(test, error),
+              ),
+              testRunner.on(
+                'test-case-result',
+                ([testPath, testCaseResult]) => {
+                  const test: TestRunner.Test = {context, path: testPath};
+                  this._dispatcher.onTestCaseResult(test, testCaseResult);
+                },
+              ),
+            ];
+
+//           ReportMore
+//             await testRunners[runner].runTests(
+//               testsByRunner[runner],
+//               watcher,
+//               onStart,
+//               onResult,
+//               onFailure,
+//               onIndividualTestResult,
+//               {
+//                 serial: runInBand || Boolean(testRunners[runner].isSerial),
+//               },
+//             );
+            await testRunner.runTests(
+              tests,
+              watcher,
+              undefined,
+              undefined,
+              undefined,
+              testRunnerOptions,
+            );
+
+            unsubscribes.forEach(sub => sub());
+          } else {
+            await testRunner.runTests(
+              tests,
+              watcher,
+              onTestFileStart,
+              onResult,
+              onFailure,
+              testRunnerOptions,
+            );
+          }
         }
       } catch (error) {
         if (!watcher.isInterrupted()) {
@@ -237,7 +311,7 @@ export default class TestScheduler {
   private _partitionTests(
     testRunners: Record<string, TestRunner>,
     tests: Array<TestRunner.Test>,
-  ) {
+  ): Record<string, Array<TestRunner.Test>> | null {
     if (Object.keys(testRunners).length > 1) {
       return tests.reduce((testRuns, test) => {
         const runner = test.context.config.runner;
@@ -382,6 +456,12 @@ export default class TestScheduler {
       }
     }
     return Promise.resolve();
+  }
+}
+
+function invariant(condition: unknown, message?: string): asserts condition {
+  if (!condition) {
+    throw new Error(message);
   }
 }
 

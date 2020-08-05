@@ -7,7 +7,6 @@
 
 import * as path from 'path';
 import * as fs from 'graceful-fs';
-import makeDir = require('make-dir');
 import naturalCompare = require('natural-compare');
 import chalk = require('chalk');
 import type {Config} from '@jest/types';
@@ -106,7 +105,7 @@ export const getSnapshotData = (
       // eslint-disable-next-line no-new-func
       const populate = new Function('exports', snapshotContents);
       populate(data);
-    } catch (e) {}
+    } catch {}
   }
 
   const validationResult = validateSnapshotVersion(snapshotContents);
@@ -183,8 +182,8 @@ const printBacktickString = (str: string): string =>
 
 export const ensureDirectoryExists = (filePath: Config.Path): void => {
   try {
-    makeDir.sync(path.join(path.dirname(filePath)));
-  } catch (e) {}
+    fs.mkdirSync(path.join(path.dirname(filePath)), {recursive: true});
+  } catch {}
 };
 
 const normalizeNewlines = (string: string) => string.replace(/\r\n|\r/g, '\n');

@@ -37,6 +37,7 @@ namespace Resolver {
     skipNodeResolution?: boolean;
     paths?: Array<Config.Path>;
   };
+  export type ResolverType = Resolver;
 }
 
 const NATIVE_PLATFORM = 'native';
@@ -192,7 +193,6 @@ class Resolver {
       });
 
     if (!skipResolution) {
-      // @ts-expect-error: the "pnp" version named isn't in DefinitelyTyped
       module = resolveNodeModule(moduleName, Boolean(process.versions.pnp));
 
       if (module) {
@@ -471,7 +471,7 @@ const createNoMappedModuleFoundError = (
   mapModuleName: (moduleName: string) => string,
   mappedModuleName: string | Array<string>,
   regex: RegExp,
-  resolver?: Function | string | null,
+  resolver?: ((...args: Array<unknown>) => unknown) | string | null,
 ) => {
   const mappedAs = Array.isArray(mappedModuleName)
     ? JSON.stringify(mappedModuleName.map(mapModuleName), null, 2)
