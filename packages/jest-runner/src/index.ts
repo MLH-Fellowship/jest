@@ -11,7 +11,7 @@ import exit = require('exit');
 import chalk = require('chalk');
 import Emittery = require('emittery');
 import throat from 'throat';
-import Worker, {PromiseWithCustomMessage} from 'jest-worker';
+import {PromiseWithCustomMessage, Worker} from 'jest-worker';
 import {deepCyclicCopy} from 'jest-util';
 import runTest from './runTest';
 import type {SerializableResolver, worker} from './testWorker';

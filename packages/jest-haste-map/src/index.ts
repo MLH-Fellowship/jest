@@ -16,7 +16,7 @@ import type {Stats} from 'graceful-fs';
 import {NodeWatcher, Watcher as SaneWatcher} from 'sane';
 import type {Config} from '@jest/types';
 import serializer from 'jest-serializer';
-import Worker from 'jest-worker';
+import {Worker} from 'jest-worker';
 import {escapePathForRegex} from 'jest-regex-util';
 import {getSha1, worker} from './worker';
 import getMockName from './getMockName';

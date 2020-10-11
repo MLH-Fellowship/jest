@@ -21,7 +21,7 @@ import chalk = require('chalk');
 import istanbulCoverage = require('istanbul-lib-coverage');
 import libSourceMaps = require('istanbul-lib-source-maps');
 import {mergeProcessCovs} from '@bcoe/v8-coverage';
-import Worker from 'jest-worker';
+import {Worker} from 'jest-worker';
 import glob = require('glob');
 import v8toIstanbul = require('v8-to-istanbul');
 import type {RawSourceMap} from 'source-map';
