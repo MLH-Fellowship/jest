@@ -230,9 +230,12 @@ class Resolver {
     options?: Resolver.ResolveModuleConfig,
   ): Config.Path {
     const dirname = path.dirname(from);
-    const module =
+    let module =
       this.resolveStubModuleName(from, moduleName) ||
       this.resolveModuleFromDirIfExists(dirname, moduleName, options);
+
+    module = this.trueCasePathSync(module);
+
     if (module) return module;
 
     // 5. Throw an error if the module could not be found. `resolve.sync` only
@@ -461,6 +464,24 @@ class Resolver {
           }
           return module;
         }
+      }
+    }
+    return null;
+  }
+
+  trueCasePathSync(module: Config.Path | null): Config.Path | null {
+    const glob = require('glob');
+    const path = require('path');
+    if (module !== null) {
+      let fsPathNormalized = path.normalize(module);
+      if (process.platform === 'darwin')
+        fsPathNormalized = fsPathNormalized.normalize('NFD');
+      const pathRoot = path.parse(fsPathNormalized).root;
+      const noDrivePath = fsPathNormalized.slice(
+        Math.max(pathRoot.length - 1, 0),
+      );
+      if (glob.sync(noDrivePath, {cwd: pathRoot, nocase: false})[0]) {
+        return module;
       }
     }
     return null;

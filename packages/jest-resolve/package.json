@@ -12,6 +12,7 @@
   "dependencies": {
     "@jest/types": "^26.5.2",
     "chalk": "^4.0.0",
+    "glob": "^7.1.6",
     "graceful-fs": "^4.2.4",
     "jest-pnp-resolver": "^1.2.2",
     "jest-util": "^26.5.2",
