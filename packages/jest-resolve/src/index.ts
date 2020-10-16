@@ -483,6 +483,7 @@ class Resolver {
       if (glob.sync(noDrivePath, {cwd: pathRoot, nocase: false})[0]) {
         return module;
       }
+      return null;
     }
     return null;
   }
