@@ -1,8 +1,7 @@
-import AutoSuggest from './AutoSuggest'; // the filename is Autosuggest.js (lower s)
-jest.mock('./AutoSuggest', () => ({get: jest.fn(() => 1000)}));
+const a = require('./AutoSuggest'); // the filename is Autosuggest.js (lower s)
 
 describe('test arithmetic', () => {
   it('test', () => {
-    expect(1 + 2).toBe(3);
+    expect(a).toBe(2);
   });
 });
