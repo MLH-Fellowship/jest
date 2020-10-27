@@ -97,6 +97,10 @@ export default class TestScheduler {
 
     const runInBand = shouldRunInBand(tests, timings, this._globalConfig);
 
+    const onTestFileAdd = async (test: TestRunner.Test) => {
+      await this._dispatcher.onTestFileAdd(test);
+    };
+
     const onResult = async (test: TestRunner.Test, testResult: TestResult) => {
       if (watcher.isInterrupted()) {
         return Promise.resolve();
@@ -226,6 +230,7 @@ export default class TestScheduler {
            */
           if (testRunner.__PRIVATE_UNSTABLE_API_supportsEventEmitters__) {
             const unsubscribes = [
+              testRunner.on('test-file-add', ([test]) => onTestFileAdd(test)),
               testRunner.on('test-file-start', ([test]) =>
                 onTestFileStart(test),
               ),

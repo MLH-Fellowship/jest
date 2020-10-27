@@ -84,11 +84,13 @@ export default class Status {
   private _estimatedTime: number;
   private _interval?: NodeJS.Timeout;
   private _aggregatedResults?: AggregatedResult;
+  private _testFilesAdded: Array<Test>;
   private _showStatus: boolean;
 
   constructor() {
     this._cache = null;
     this._currentTests = new CurrentTestList();
+    this._testFilesAdded = [];
     this._currentTestCases = [];
     this._done = false;
     this._emitScheduled = false;
@@ -115,6 +117,15 @@ export default class Status {
     this._done = true;
     if (this._interval) clearInterval(this._interval);
     this._emit();
+  }
+
+  addTestFiles(test: Test): void {
+    this._testFilesAdded.push(test);
+    if (!this._showStatus) {
+      this._emit();
+    } else {
+      this._debouncedEmit();
+    }
   }
 
   addTestCaseResult(test: Test, testCaseResult: TestCaseResult): void {
@@ -181,10 +192,10 @@ export default class Status {
       }
     });
 
-    if (this._showStatus && this._aggregatedResults) {
+    if (this._showStatus && this._aggregatedResults && this._testFilesAdded) {
       content +=
         '\n' +
-        getSummary(this._aggregatedResults, {
+        getSummary(this._aggregatedResults, this._testFilesAdded, {
           currentTestCases: this._currentTestCases,
           estimatedTime: this._estimatedTime,
           roundTime: true,

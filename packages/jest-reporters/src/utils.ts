@@ -131,6 +131,7 @@ const getValuesCurrentTestCases = (
 
 export const getSummary = (
   aggregatedResults: AggregatedResult,
+  testFilesAdded?: Array<Test>,
   options?: SummaryOptions,
 ): string => {
   let runTime = (Date.now() - aggregatedResults.startTime) / 1000;
@@ -161,6 +162,7 @@ export const getSummary = (
   const testsPassed = aggregatedResults.numPassedTests;
   const testsPending = aggregatedResults.numPendingTests;
   const testsTodo = aggregatedResults.numTodoTests;
+  const testsTotalAdded = testFilesAdded?.length;
   const testsTotal = aggregatedResults.numTotalTests;
   const width = (options && options.width) || 0;
 
@@ -200,7 +202,10 @@ export const getSummary = (
     (updatedTestsPassed > 0
       ? chalk.bold.green(`${updatedTestsPassed} passed`) + ', '
       : '') +
-    `${updatedTestsTotal} total`;
+    (testsTotalAdded !== updatedTestsTotal
+      ? testsTotalAdded + ' of' + updatedTestsTotal
+      : updatedTestsTotal) +
+    ` total`;
 
   const snapshots =
     chalk.bold('Snapshots:   ') +

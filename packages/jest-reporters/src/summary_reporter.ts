@@ -104,7 +104,7 @@ export default class SummaryReporter extends BaseReporter {
       );
 
       if (numTotalTestSuites) {
-        let message = getSummary(aggregatedResults, {
+        let message = getSummary(aggregatedResults, undefined, {
           estimatedTime: this._estimatedTime,
         });
 

@@ -43,6 +43,7 @@ export type OnTestSuccess = (
 
 // Typings for `sendMessageToJest` events
 export type TestEvents = {
+  'test-file-add': [Test];
   'test-file-start': [Test];
   'test-file-success': [Test, TestResult];
   'test-file-failure': [Test, SerializableError];
