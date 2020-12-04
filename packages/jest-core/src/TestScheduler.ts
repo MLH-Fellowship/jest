@@ -35,6 +35,7 @@ import {interopRequireDefault} from 'jest-util';
 import ReporterDispatcher from './ReporterDispatcher';
 import type TestWatcher from './TestWatcher';
 import {shouldRunInBand} from './testSchedulerHelper';
+const reporterService = require('./ReporterMachine');
 
 // The default jest-runner is required because it is the default test runner
 // and required implicitly through the `runner` ProjectConfig option.
@@ -180,7 +181,7 @@ export default class TestScheduler {
           aggregatedResults.snapshot.filesRemoved)
       );
     };
-
+    reporterService.send('START');
     await this._dispatcher.onRunStart(aggregatedResults, {
       estimatedTime,
       showStatus: !runInBand,
