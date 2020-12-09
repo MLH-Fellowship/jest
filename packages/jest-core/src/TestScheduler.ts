@@ -35,7 +35,8 @@ import {interopRequireDefault} from 'jest-util';
 import ReporterDispatcher from './ReporterDispatcher';
 import type TestWatcher from './TestWatcher';
 import {shouldRunInBand} from './testSchedulerHelper';
-const reporterService = require('./ReporterMachine');
+import {interpret} from 'xstate';
+const {reporterMachine} = require('./ReporterMachine');
 
 // The default jest-runner is required because it is the default test runner
 // and required implicitly through the `runner` ProjectConfig option.
@@ -181,12 +182,26 @@ export default class TestScheduler {
           aggregatedResults.snapshot.filesRemoved)
       );
     };
-    reporterService.send('START');
+    const TestSchedulerService = interpret(reporterMachine).onTransition(
+      state => {
+        console.log('TSS', state.value);
+        if (state.value == 'onRunStart') {
+          console.log('Waiting for reporter to run code');
+        }
+        if (state.value == 'afterOnRunStart') {
+          console.log('Run code here');
+        }
+      },
+    );
+
+    TestSchedulerService.start();
+
+    TestSchedulerService.send('START');
     await this._dispatcher.onRunStart(aggregatedResults, {
       estimatedTime,
       showStatus: !runInBand,
     });
-
+    TestSchedulerService.send('A_START');
     const testRunners: {[key: string]: TestRunner} = Object.create(null);
     const contextsByTestRunner = new WeakMap<TestRunner, Context>();
     contexts.forEach(context => {

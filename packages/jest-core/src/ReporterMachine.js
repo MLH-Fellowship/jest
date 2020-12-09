@@ -4,6 +4,10 @@ const onRunStartAction = () => {
   console.log('It works');
 };
 
+const confirm = () => {
+  console.log('Inside wait');
+};
+
 const reporterMachine = Machine(
   {
     id: 'jestMachine',
@@ -16,6 +20,12 @@ const reporterMachine = Machine(
       },
       onRunStart: {
         entry: 'onRunStartAction',
+        on: {
+          A_START: 'afterOnRunStart',
+        },
+      },
+      afterOnRunStart: {
+        entry: 'confirm',
       },
       // onTestStart,
       // onTestComplete,
@@ -23,14 +33,8 @@ const reporterMachine = Machine(
     },
   },
   {
-    actions: {onRunStartAction},
+    actions: {onRunStartAction, confirm},
   },
 );
 
-const reporterService = interpret(reporterMachine).onTransition(state =>
-  console.log(state.value),
-);
-
-reporterService.start();
-
-module.exports = reporterService;
+module.exports = {reporterMachine};
