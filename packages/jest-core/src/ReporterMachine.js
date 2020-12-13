@@ -1,40 +1,65 @@
-const {Machine, interpret} = require('xstate');
+const Emittery = require('emittery');
+const {Machine} = require('xstate');
 
-const onRunStartAction = () => {
-  console.log('It works');
+const insideORS = () => {
+  console.log('Inside ORS');
 };
 
-const confirm = () => {
-  console.log('Inside wait');
+const insideARS = () => {
+  console.log('Inside ARS');
 };
 
-const reporterMachine = Machine(
-  {
-    id: 'jestMachine',
-    initial: 'idle',
-    states: {
-      idle: {
-        on: {
-          START: 'onRunStart',
+export const eventEmitter = new Emittery.Typed();
+require('./tester');
+
+const emitStateToReporters = async reporters => {
+  for (const reporter of reporters) {
+    await emitStateToReporter(reporter);
+  }
+};
+
+const emitStateToReporter = async reporter => {
+  console.log(`Emitted! to ${reporter}`);
+  await eventEmitter.emit('on-run-start', reporter);
+};
+
+export const createReporterMachine = reporters =>
+  Machine(
+    {
+      context: {
+        reporters,
+      },
+      id: 'jestMachine',
+      initial: 'idle',
+      states: {
+        afterOnRunStart: {
+          entry: 'insideARS',
         },
-      },
-      onRunStart: {
-        entry: 'onRunStartAction',
-        on: {
-          A_START: 'afterOnRunStart',
+        idle: {
+          on: {
+            ON_RUN_START: 'onRunStart',
+          },
         },
+        onRunStart: {
+          entry: 'insideORS',
+          invoke: {
+            id: 'run-reporters',
+            src: context => async callback => {
+              await emitStateToReporters(context.reporters);
+              callback('DONE');
+            },
+          },
+          on: {
+            DONE: 'afterOnRunStart',
+          },
+        },
+
+        // onTestStart,
+        // onTestComplete,
+        // onRunComplete,
       },
-      afterOnRunStart: {
-        entry: 'confirm',
-      },
-      // onTestStart,
-      // onTestComplete,
-      // onRunComplete,
     },
-  },
-  {
-    actions: {onRunStartAction, confirm},
-  },
-);
-
-module.exports = {reporterMachine};
+    {
+      actions: {emitStateToReporters, insideARS, insideORS},
+    },
+  );

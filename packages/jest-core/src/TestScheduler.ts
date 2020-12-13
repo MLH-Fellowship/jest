@@ -9,6 +9,7 @@
 
 import chalk = require('chalk');
 import exit = require('exit');
+import {interpret} from 'xstate';
 import {
   CoverageReporter,
   DefaultReporter,
@@ -35,8 +36,7 @@ import {interopRequireDefault} from 'jest-util';
 import ReporterDispatcher from './ReporterDispatcher';
 import type TestWatcher from './TestWatcher';
 import {shouldRunInBand} from './testSchedulerHelper';
-import {interpret} from 'xstate';
-const {reporterMachine} = require('./ReporterMachine');
+const {createReporterMachine} = require('./ReporterMachine');
 
 // The default jest-runner is required because it is the default test runner
 // and required implicitly through the `runner` ProjectConfig option.
@@ -51,11 +51,13 @@ export type TestSchedulerContext = {
   changedFiles?: Set<Config.Path>;
   sourcesRelatedToTestsInChangedFiles?: Set<Config.Path>;
 };
+
 export default class TestScheduler {
   private readonly _dispatcher: ReporterDispatcher;
   private readonly _globalConfig: Config.GlobalConfig;
   private readonly _options: TestSchedulerOptions;
   private readonly _context: TestSchedulerContext;
+  reporters: Array<Reporter>;
 
   constructor(
     globalConfig: Config.GlobalConfig,
@@ -66,15 +68,26 @@ export default class TestScheduler {
     this._globalConfig = globalConfig;
     this._options = options;
     this._context = context;
+    this.reporters = [];
     this._setupReporters();
   }
 
   addReporter(reporter: Reporter): void {
-    this._dispatcher.register(reporter);
+    this.register(reporter);
   }
 
   removeReporter(ReporterClass: Function): void {
-    this._dispatcher.unregister(ReporterClass);
+    this.unregister(ReporterClass);
+  }
+
+  register(reporter: Reporter): void {
+    this.reporters.push(reporter);
+  }
+
+  unregister(ReporterClass: Function): void {
+    this.reporters = this.reporters.filter(
+      reporter => !(reporter instanceof ReporterClass),
+    );
   }
 
   async scheduleTests(
@@ -132,6 +145,8 @@ export default class TestScheduler {
       }
 
       addResult(aggregatedResults, testResult);
+      // FSM-STATE
+
       await this._dispatcher.onTestFileResult(
         test,
         testResult,
@@ -152,6 +167,8 @@ export default class TestScheduler {
         test.path,
       );
       addResult(aggregatedResults, testResult);
+      // FSM-STATE
+
       await this._dispatcher.onTestFileResult(
         test,
         testResult,
@@ -182,26 +199,35 @@ export default class TestScheduler {
           aggregatedResults.snapshot.filesRemoved)
       );
     };
+
+    const reporterMachine = createReporterMachine(['SDS', 'qweq']);
     const TestSchedulerService = interpret(reporterMachine).onTransition(
       state => {
-        console.log('TSS', state.value);
-        if (state.value == 'onRunStart') {
-          console.log('Waiting for reporter to run code');
-        }
+        // console.log('TestSchedulerState =>', state.value);
         if (state.value == 'afterOnRunStart') {
-          console.log('Run code here');
+          console.log('Ran reporters, run testScheduler');
         }
       },
     );
 
     TestSchedulerService.start();
-
-    TestSchedulerService.send('START');
-    await this._dispatcher.onRunStart(aggregatedResults, {
-      estimatedTime,
-      showStatus: !runInBand,
+    TestSchedulerService.send('ON_RUN_START', {
+      options: {
+        estimatedTime,
+        showStatus: !runInBand,
+      },
+      results: aggregatedResults,
     });
-    TestSchedulerService.send('A_START');
+
+    // FSM-STATE
+
+    // await this._dispatcher.onRunStart(aggregatedResults, {
+    //   estimatedTime,
+    //   showStatus: !runInBand,
+    // });
+
+    // Here After ORS
+
     const testRunners: {[key: string]: TestRunner} = Object.create(null);
     const contextsByTestRunner = new WeakMap<TestRunner, Context>();
     contexts.forEach(context => {
@@ -291,6 +317,8 @@ export default class TestScheduler {
 
     updateSnapshotState();
     aggregatedResults.wasInterrupted = watcher.isInterrupted();
+
+    // FSM-STATE
     await this._dispatcher.onRunComplete(contexts, aggregatedResults);
 
     const anyTestFailures = !(
