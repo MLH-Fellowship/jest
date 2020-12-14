@@ -66,6 +66,7 @@ export type AggregatedResultWithoutCoverage = {
   numTotalTests: number;
   numTotalTestSuites: number;
   openHandles: Array<Error>;
+  ready: boolean;
   snapshot: SnapshotSummary;
   startTime: number;
   success: boolean;

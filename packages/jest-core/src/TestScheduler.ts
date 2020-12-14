@@ -37,6 +37,7 @@ import ReporterDispatcher from './ReporterDispatcher';
 import type TestWatcher from './TestWatcher';
 import {shouldRunInBand} from './testSchedulerHelper';
 const {createReporterMachine} = require('./ReporterMachine');
+const {eventEmitter} = require('./ReporterMachine');
 
 // The default jest-runner is required because it is the default test runner
 // and required implicitly through the `runner` ProjectConfig option.
@@ -199,8 +200,10 @@ export default class TestScheduler {
           aggregatedResults.snapshot.filesRemoved)
       );
     };
-
-    const reporterMachine = createReporterMachine(['SDS', 'qweq']);
+    const reporterMachine = createReporterMachine({
+      aggregatedResults,
+      reporters: ['./tester.js', './reporter2.js', './reporter3.js'],
+    });
     const TestSchedulerService = interpret(reporterMachine).onTransition(
       state => {
         // console.log('TestSchedulerState =>', state.value);
@@ -227,112 +230,126 @@ export default class TestScheduler {
     // });
 
     // Here After ORS
-
-    const testRunners: {[key: string]: TestRunner} = Object.create(null);
-    const contextsByTestRunner = new WeakMap<TestRunner, Context>();
-    contexts.forEach(context => {
-      const {config} = context;
-      if (!testRunners[config.runner]) {
-        const transformer = new ScriptTransformer(config);
-        const Runner: typeof TestRunner = interopRequireDefault(
-          transformer.requireAndTranspileModule(config.runner),
-        ).default;
-        const runner = new Runner(this._globalConfig, {
-          changedFiles: this._context?.changedFiles,
-          sourcesRelatedToTestsInChangedFiles: this._context
-            ?.sourcesRelatedToTestsInChangedFiles,
+    console.log('listening');
+    eventEmitter.on(
+      'after-on-run-start',
+      async (aggregatedResults: AggregatedResult) => {
+        console.log('🌟 After on Run Start');
+        const testRunners: {[key: string]: TestRunner} = Object.create(null);
+        const contextsByTestRunner = new WeakMap<TestRunner, Context>();
+        contexts.forEach(context => {
+          const {config} = context;
+          if (!testRunners[config.runner]) {
+            const transformer = new ScriptTransformer(config);
+            const Runner: typeof TestRunner = interopRequireDefault(
+              transformer.requireAndTranspileModule(config.runner),
+            ).default;
+            const runner = new Runner(this._globalConfig, {
+              changedFiles: this._context?.changedFiles,
+              sourcesRelatedToTestsInChangedFiles: this._context
+                ?.sourcesRelatedToTestsInChangedFiles,
+            });
+            testRunners[config.runner] = runner;
+            contextsByTestRunner.set(runner, context);
+          }
         });
-        testRunners[config.runner] = runner;
-        contextsByTestRunner.set(runner, context);
-      }
-    });
 
-    const testsByRunner = this._partitionTests(testRunners, tests);
+        const testsByRunner = this._partitionTests(testRunners, tests);
 
-    if (testsByRunner) {
-      try {
-        for (const runner of Object.keys(testRunners)) {
-          const testRunner = testRunners[runner];
-          const context = contextsByTestRunner.get(testRunner);
+        if (testsByRunner) {
+          try {
+            for (const runner of Object.keys(testRunners)) {
+              const testRunner = testRunners[runner];
+              const context = contextsByTestRunner.get(testRunner);
 
-          invariant(context);
+              invariant(context);
 
-          const tests = testsByRunner[runner];
+              const tests = testsByRunner[runner];
 
-          const testRunnerOptions = {
-            serial: runInBand || Boolean(testRunner.isSerial),
-          };
+              const testRunnerOptions = {
+                serial: runInBand || Boolean(testRunner.isSerial),
+              };
 
-          /**
-           * Test runners with event emitters are still not supported
-           * for third party test runners.
-           */
-          if (testRunner.__PRIVATE_UNSTABLE_API_supportsEventEmitters__) {
-            const unsubscribes = [
-              testRunner.on('test-file-start', ([test]) =>
-                onTestFileStart(test),
-              ),
-              testRunner.on('test-file-success', ([test, testResult]) =>
-                onResult(test, testResult),
-              ),
-              testRunner.on('test-file-failure', ([test, error]) =>
-                onFailure(test, error),
-              ),
-              testRunner.on(
-                'test-case-result',
-                ([testPath, testCaseResult]) => {
-                  const test: Test = {context, path: testPath};
-                  this._dispatcher.onTestCaseResult(test, testCaseResult);
-                },
-              ),
-            ];
+              /**
+               * Test runners with event emitters are still not supported
+               * for third party test runners.
+               */
+              if (testRunner.__PRIVATE_UNSTABLE_API_supportsEventEmitters__) {
+                const unsubscribes = [
+                  testRunner.on('test-file-start', ([test]) =>
+                    onTestFileStart(test),
+                  ),
+                  testRunner.on('test-file-success', ([test, testResult]) =>
+                    onResult(test, testResult),
+                  ),
+                  testRunner.on('test-file-failure', ([test, error]) =>
+                    onFailure(test, error),
+                  ),
+                  testRunner.on(
+                    'test-case-result',
+                    ([testPath, testCaseResult]) => {
+                      const test: Test = {context, path: testPath};
+                      this._dispatcher.onTestCaseResult(test, testCaseResult);
+                    },
+                  ),
+                ];
 
-            await testRunner.runTests(
-              tests,
-              watcher,
-              undefined,
-              undefined,
-              undefined,
-              testRunnerOptions,
-            );
+                await testRunner.runTests(
+                  tests,
+                  watcher,
+                  undefined,
+                  undefined,
+                  undefined,
+                  testRunnerOptions,
+                );
 
-            unsubscribes.forEach(sub => sub());
-          } else {
-            await testRunner.runTests(
-              tests,
-              watcher,
-              onTestFileStart,
-              onResult,
-              onFailure,
-              testRunnerOptions,
-            );
+                unsubscribes.forEach(sub => sub());
+              } else {
+                await testRunner.runTests(
+                  tests,
+                  watcher,
+                  onTestFileStart,
+                  onResult,
+                  onFailure,
+                  testRunnerOptions,
+                );
+              }
+            }
+          } catch (error) {
+            if (!watcher.isInterrupted()) {
+              throw error;
+            }
           }
         }
-      } catch (error) {
-        if (!watcher.isInterrupted()) {
-          throw error;
-        }
-      }
+
+        updateSnapshotState();
+        aggregatedResults.wasInterrupted = watcher.isInterrupted();
+
+        // FSM-STATE
+        await this._dispatcher.onRunComplete(contexts, aggregatedResults);
+
+        const anyTestFailures = !(
+          aggregatedResults.numFailedTests === 0 &&
+          aggregatedResults.numRuntimeErrorTestSuites === 0
+        );
+        const anyReporterErrors = this._dispatcher.hasErrors();
+
+        aggregatedResults.success = !(
+          anyTestFailures ||
+          aggregatedResults.snapshot.failure ||
+          anyReporterErrors
+        );
+        // console.log( 'AGG inside listener', aggregatedResults)
+        aggregatedResults.ready = true;
+      },
+    );
+    async function wait(ms: number) {
+      return new Promise(resolve => {
+        setTimeout(resolve, ms);
+      });
     }
-
-    updateSnapshotState();
-    aggregatedResults.wasInterrupted = watcher.isInterrupted();
-
-    // FSM-STATE
-    await this._dispatcher.onRunComplete(contexts, aggregatedResults);
-
-    const anyTestFailures = !(
-      aggregatedResults.numFailedTests === 0 &&
-      aggregatedResults.numRuntimeErrorTestSuites === 0
-    );
-    const anyReporterErrors = this._dispatcher.hasErrors();
-
-    aggregatedResults.success = !(
-      anyTestFailures ||
-      aggregatedResults.snapshot.failure ||
-      anyReporterErrors
-    );
-
+    await wait(5000);
+    console.log('aggregated Results', aggregatedResults);
     return aggregatedResults;
   }
 

@@ -6,5 +6,10 @@ async function wait(ms) {
 }
 eventEmitter.on('on-run-start', async reporter => {
   await wait(1000);
-  console.log(`Caught reporter ${reporter} 🎉`);
+  console.log(`--->Found reporter ${reporter} 🎉`);
+});
+
+eventEmitter.on('on-run-start', async reporter => {
+  await wait(1000);
+  console.log(`--->Found2 reporter ${reporter} 🎉`);
 });

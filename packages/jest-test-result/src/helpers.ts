@@ -20,6 +20,7 @@ export const makeEmptyAggregatedTestResult = (): AggregatedResult => ({
   numTotalTestSuites: 0,
   numTotalTests: 0,
   openHandles: [],
+  ready: false,
   snapshot: {
     added: 0,
     didUpdate: false, // is set only after the full run
