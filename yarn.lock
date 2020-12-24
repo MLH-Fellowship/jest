@@ -1820,6 +1820,7 @@ __metadata:
     rimraf: ^3.0.0
     slash: ^3.0.0
     strip-ansi: ^6.0.0
+    xstate: ^4.14.1
   languageName: unknown
   linkType: soft
 
@@ -20412,6 +20413,13 @@ react-native@0.63.2:
   version: 1.0.5
   resolution: "xpipe@npm:1.0.5"
   checksum: 352a01c47ad27b4439cb6a42063fe62d3ff7691dfa3f5f16c6cd0f3015100f7f2a7389128bdeb7d62ba184da868d2866a56a7116ed595cda486710bae33cc268
+  languageName: node
+  linkType: hard
+
+"xstate@npm:^4.14.1":
+  version: 4.14.1
+  resolution: "xstate@npm:4.14.1"
+  checksum: 87bc09485ade11fe68becab6eb455f5d7534456a0950f9672766783b6e617f9d910832404dcc2d37e3ebe3134891b4bf26481feb6052456f276f54689320d56e
   languageName: node
   linkType: hard
 

@@ -37,7 +37,8 @@
     "p-each-series": "^2.1.0",
     "rimraf": "^3.0.0",
     "slash": "^3.0.0",
-    "strip-ansi": "^6.0.0"
+    "strip-ansi": "^6.0.0",
+    "xstate": "^4.14.1"
   },
   "devDependencies": {
     "@jest/test-sequencer": "^27.0.0-next.2",
